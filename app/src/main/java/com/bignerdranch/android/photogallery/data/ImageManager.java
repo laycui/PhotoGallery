@@ -1,4 +1,4 @@
-package com.bignerdranch.android.photogallery;
+package com.bignerdranch.android.photogallery.data;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -14,11 +14,15 @@ import android.util.LruCache;
 
 import com.bignerdranch.android.photogallery.PhotoGalleryFragment.PhotoHolder;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-class ImageManager {
+public class ImageManager {
 
   private static final String TAG = "ImageManager";
 
@@ -28,7 +32,7 @@ class ImageManager {
   private Context mContext;
   private LruCache<String, Bitmap> mLruCache;
 
-  ImageManager(Context context, LruCache<String, Bitmap> lruCache) {
+  public ImageManager(Context context, LruCache<String, Bitmap> lruCache) {
     mRequestMap = new ConcurrentHashMap<>();
     mUiHandler = new Handler(Looper.getMainLooper());
     mContext = context;
@@ -48,7 +52,7 @@ class ImageManager {
             });
   }
 
-  void queueThumbnail(PhotoHolder photoHolder, String url) {
+  public void queueThumbnail(PhotoHolder photoHolder, String url) {
     mRequestMap.put(photoHolder, url);
     Message message = Message.obtain();
     message.obj = photoHolder;
@@ -61,7 +65,7 @@ class ImageManager {
       if (url == null) {
         return;
       }
-      byte[] bitmapBytes = new FlickrFetchr().getUrlBytes(url);
+      byte[] bitmapBytes = getUrlBytes(url);
       final Bitmap bitmap = BitmapFactory.decodeByteArray(bitmapBytes, 0, bitmapBytes.length);
       Log.i(TAG, "Bitmap created");
       if (!url.equals(target.getUrl())) {
@@ -77,13 +81,37 @@ class ImageManager {
   }
 
   private void onPostExecution(final PhotoHolder photoHolder, final Bitmap bitmap) {
+    final Drawable drawable = new BitmapDrawable(mContext.getResources(), bitmap);
     mUiHandler.post(
         new Runnable() {
           @Override
           public void run() {
-            Drawable drawable = new BitmapDrawable(mContext.getResources(), bitmap);
             photoHolder.bindDrawable(drawable);
           }
         });
+  }
+
+  private static byte[] getUrlBytes(String urlSpec) throws IOException {
+    URL url = new URL(urlSpec);
+    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+    try {
+      ByteArrayOutputStream out = new ByteArrayOutputStream();
+      InputStream in = connection.getInputStream();
+
+      if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+        throw new IOException(connection.getResponseMessage() + ": with " + urlSpec);
+      }
+
+      int bytesRead;
+      byte[] buffer = new byte[1024];
+      while ((bytesRead = in.read(buffer)) > 0) {
+        out.write(buffer, 0, bytesRead);
+      }
+      out.close();
+      return out.toByteArray();
+    } finally {
+      connection.disconnect();
+    }
   }
 }

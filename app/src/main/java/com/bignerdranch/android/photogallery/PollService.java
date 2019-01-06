@@ -10,9 +10,11 @@ import android.content.Intent;
 import android.content.res.Resources;
 import android.net.ConnectivityManager;
 import android.os.SystemClock;
-import android.support.v4.app.NotificationManagerCompat;
 import android.support.v7.app.NotificationCompat;
 import android.util.Log;
+
+import com.bignerdranch.android.photogallery.data.FlickrFetchrV2;
+import com.bignerdranch.android.photogallery.data.GalleryItem;
 
 import java.util.List;
 
@@ -43,11 +45,7 @@ public class PollService extends IntentService {
     String lastResultId = QueryPreferences.getLastResultId(this);
     List<GalleryItem> items;
 
-    if (query == null) {
-      items = new FlickrFetchr().fetchRecentPhotos();
-    } else {
-      items = new FlickrFetchr().searchPhotos(query);
-    }
+    items = new FlickrFetchrV2().requestSync(query);
 
     if (items.size() == 0) {
       return;
