@@ -17,8 +17,8 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
 
+import com.bignerdranch.android.photogallery.customview.LoadingImageView;
 import com.bignerdranch.android.photogallery.data.FlickrFetchrV2;
 import com.bignerdranch.android.photogallery.data.GalleryItem;
 import com.bignerdranch.android.photogallery.data.ImageManager;
@@ -172,7 +172,7 @@ public class PhotoGalleryFragment extends VisibleFragment {
         photoHolder.bindDrawable(new BitmapDrawable(getResources(), bitmap));
         return;
       }
-      photoHolder.bindDrawable(getResources().getDrawable(R.mipmap.ic_launcher));
+      photoHolder.reset();
       mImageManager.queueThumbnail(photoHolder, galleryItem.getUrl());
     }
 
@@ -183,7 +183,7 @@ public class PhotoGalleryFragment extends VisibleFragment {
   }
 
   public static class PhotoHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
-    private ImageView mItemImageView;
+    private LoadingImageView mItemImageView;
     private GalleryItem mGalleryItem;
     private Context mContext;
 
@@ -192,6 +192,10 @@ public class PhotoGalleryFragment extends VisibleFragment {
       mContext = context;
       mItemImageView = itemView.findViewById(R.id.fragment_photo_gallery_item_view);
       itemView.setOnClickListener(this);
+    }
+
+    void reset() {
+      mItemImageView.reset();
     }
 
     public void bindDrawable(Drawable drawable) {
