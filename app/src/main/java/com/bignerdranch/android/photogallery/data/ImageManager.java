@@ -10,6 +10,8 @@ import com.bignerdranch.android.photogallery.customview.LoadingImageView;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -23,7 +25,7 @@ public class ImageManager {
 
   private Handler mUiHandler;
   private OkHttpClient mOkHttpClient;
-  private ConcurrentMap<String, LoadingImageView> mUrl2Image;
+  private ConcurrentMap<String, Set<LoadingImageView>> mUrl2Image;
   private ConcurrentMap<LoadingImageView, String> mImage2Url;
   private LruCache<String, Bitmap> mLruCache;
 
@@ -50,15 +52,24 @@ public class ImageManager {
     }
     // URL to set of ImageViews
     if (mImage2Url.containsKey(loadingImageView)) {
-      mUrl2Image.remove(mImage2Url.get(loadingImageView));
+      String oldUrl = mImage2Url.get(loadingImageView);
+      if (mUrl2Image.containsKey(oldUrl)) {
+        mUrl2Image.get(oldUrl).remove(loadingImageView);
+      }
+      mImage2Url.remove(loadingImageView);
     }
-    mImage2Url.put(loadingImageView, url);
-    mUrl2Image.put(url, loadingImageView);
     if (mLruCache.get(url) != null) {
-      bindImage(url);
+      loadingImageView.setImageBitmap(mLruCache.get(url));
       return;
     }
-    downloadBitmap(url);
+    mImage2Url.put(loadingImageView, url);
+    if (!mUrl2Image.containsKey(url)) {
+      mUrl2Image.put(url, new HashSet<LoadingImageView>());
+      mUrl2Image.get(url).add(loadingImageView);
+      downloadBitmap(url);
+    } else {
+      mUrl2Image.get(url).add(loadingImageView);
+    }
   }
 
   private void downloadBitmap(final String url) {
@@ -90,8 +101,13 @@ public class ImageManager {
   }
 
   private void bindImage(String url) {
-    mUrl2Image.get(url).setImageBitmap(mLruCache.get(url));
-    mImage2Url.remove(mUrl2Image.get(url));
+    if (!mUrl2Image.containsKey(url)) {
+      return;
+    }
+    for (LoadingImageView imageView : mUrl2Image.get(url)) {
+      imageView.setImageBitmap(mLruCache.get(url));
+      mImage2Url.remove(imageView);
+    }
     mUrl2Image.remove(url);
   }
 }
