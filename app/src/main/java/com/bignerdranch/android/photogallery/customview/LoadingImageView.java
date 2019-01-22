@@ -1,7 +1,7 @@
 package com.bignerdranch.android.photogallery.customview;
 
 import android.content.Context;
-import android.graphics.drawable.Drawable;
+import android.graphics.Bitmap;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
@@ -27,8 +27,8 @@ public class LoadingImageView extends FrameLayout {
     reset();
   }
 
-  public void setImageDrawable(Drawable drawable) {
-    mImageView.setImageDrawable(drawable);
+  public void setImageBitmap(Bitmap bitmap) {
+    mImageView.setImageBitmap(bitmap);
 
     mImageView.setVisibility(VISIBLE);
     mProgressBar.setVisibility(GONE);

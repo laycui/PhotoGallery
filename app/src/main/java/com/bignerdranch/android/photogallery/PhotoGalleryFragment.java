@@ -2,15 +2,11 @@ package com.bignerdranch.android.photogallery;
 
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SearchView;
 import android.util.Log;
-import android.util.LruCache;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -33,10 +29,7 @@ public class PhotoGalleryFragment extends VisibleFragment {
   private RecyclerView mPhotoRecyclerView;
   private PhotoAdapter mPhotoAdapter;
   private List<GalleryItem> mItems = new ArrayList<>();
-  private ImageManager mImageManager;
   private FlickrFetchrV2 mFlickrFetchrV2;
-
-  private LruCache<String, Bitmap> mLruCache;
 
   public static PhotoGalleryFragment newInstance() {
     return new PhotoGalleryFragment();
@@ -47,9 +40,6 @@ public class PhotoGalleryFragment extends VisibleFragment {
     super.onCreate(savedInstanceState);
     setRetainInstance(true);
     setHasOptionsMenu(true);
-
-    mLruCache = new LruCache<>(100);
-    mImageManager = new ImageManager(getContext(), mLruCache);
   }
 
   @Override
@@ -162,18 +152,7 @@ public class PhotoGalleryFragment extends VisibleFragment {
 
     @Override
     public void onBindViewHolder(PhotoHolder photoHolder, int position) {
-      GalleryItem galleryItem = mGalleryItems.get(position);
-      photoHolder.bindGalleryItem(galleryItem);
-      if (galleryItem.getUrl() == null) {
-        return;
-      }
-      Bitmap bitmap = mLruCache.get(galleryItem.getUrl());
-      if (bitmap != null) {
-        photoHolder.bindDrawable(new BitmapDrawable(getResources(), bitmap));
-        return;
-      }
-      photoHolder.reset();
-      mImageManager.queueThumbnail(photoHolder, galleryItem.getUrl());
+      photoHolder.bindGalleryItem(mGalleryItems.get(position));
     }
 
     @Override
@@ -194,20 +173,10 @@ public class PhotoGalleryFragment extends VisibleFragment {
       itemView.setOnClickListener(this);
     }
 
-    void reset() {
-      mItemImageView.reset();
-    }
-
-    public void bindDrawable(Drawable drawable) {
-      mItemImageView.setImageDrawable(drawable);
-    }
-
-    public void bindGalleryItem(GalleryItem galleryItem) {
+    void bindGalleryItem(GalleryItem galleryItem) {
       mGalleryItem = galleryItem;
-    }
-
-    public String getUrl() {
-      return mGalleryItem.getUrl();
+      mItemImageView.reset();
+      ImageManager.getInstance().bindImageWithUrl(mGalleryItem.mUrl, mItemImageView);
     }
 
     @Override

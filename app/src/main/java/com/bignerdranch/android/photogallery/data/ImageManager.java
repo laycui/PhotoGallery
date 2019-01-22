@@ -1,26 +1,23 @@
 package com.bignerdranch.android.photogallery.data;
 
-import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
-import android.util.Log;
+import android.support.annotation.WorkerThread;
 import android.util.LruCache;
 
-import com.bignerdranch.android.photogallery.PhotoGalleryFragment.PhotoHolder;
+import com.bignerdranch.android.photogallery.customview.LoadingImageView;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 public class ImageManager {
 
@@ -28,16 +25,26 @@ public class ImageManager {
 
   private Handler mRequestHandler;
   private Handler mUiHandler;
-  private ConcurrentMap<PhotoHolder, String> mRequestMap;
-  private Context mContext;
+  private OkHttpClient mOkHttpClient;
+  private ConcurrentMap<String, LoadingImageView> mUrl2Image;
+  private ConcurrentMap<LoadingImageView, String> mImage2Url;
   private LruCache<String, Bitmap> mLruCache;
 
-  public ImageManager(Context context, LruCache<String, Bitmap> lruCache) {
-    mRequestMap = new ConcurrentHashMap<>();
-    mUiHandler = new Handler(Looper.getMainLooper());
-    mContext = context;
-    mLruCache = lruCache;
+  private static ImageManager sImageManager;
 
+  public static ImageManager getInstance() {
+    if (sImageManager == null) {
+      sImageManager = new ImageManager();
+    }
+    return sImageManager;
+  }
+
+  public ImageManager() {
+    mUrl2Image = new ConcurrentHashMap<>();
+    mImage2Url = new ConcurrentHashMap<>();
+    mUiHandler = new Handler(Looper.getMainLooper());
+    mLruCache = new LruCache<>(100);
+    mOkHttpClient = new OkHttpClient();
     HandlerThread handlerThread = new HandlerThread(TAG);
     handlerThread.start();
     mRequestHandler =
@@ -46,72 +53,65 @@ public class ImageManager {
             new Handler.Callback() {
               @Override
               public boolean handleMessage(Message message) {
-                handleRequest((PhotoHolder) message.obj);
+                handleRequest((String) message.obj);
                 return false;
               }
             });
   }
 
-  public void queueThumbnail(PhotoHolder photoHolder, String url) {
-    mRequestMap.put(photoHolder, url);
+  public void bindImageWithUrl(String url, LoadingImageView loadingImageView) {
+    if (url == null) {
+      return;
+    }
+    // URL to set of ImageViews
+    if (mImage2Url.containsKey(loadingImageView)) {
+      mUrl2Image.remove(mImage2Url.get(loadingImageView));
+    }
+    mImage2Url.put(loadingImageView, url);
+    mUrl2Image.put(url, loadingImageView);
+    if (mLruCache.get(url) != null) {
+      loadingImageView.setImageBitmap(mLruCache.get(url));
+      mImage2Url.remove(loadingImageView);
+      mUrl2Image.remove(url);
+      return;
+    }
+    httpRequest(url);
+  }
+
+  private void httpRequest(String url) {
     Message message = Message.obtain();
-    message.obj = photoHolder;
+    message.obj = url;
     mRequestHandler.sendMessage(message);
   }
 
-  private void handleRequest(final PhotoHolder target) {
-    try {
-      final String url = mRequestMap.get(target);
-      if (url == null) {
-        return;
-      }
-      byte[] bitmapBytes = getUrlBytes(url);
-      final Bitmap bitmap = BitmapFactory.decodeByteArray(bitmapBytes, 0, bitmapBytes.length);
-      Log.i(TAG, "Bitmap created");
-      if (!url.equals(target.getUrl())) {
-        Log.e("laycui", "stale URL");
-        return;
-      }
-      mRequestMap.remove(target);
-      mLruCache.put(url, bitmap);
-      onPostExecution(target, bitmap);
-    } catch (IOException ioe) {
-      Log.e(TAG, "Error downloading image", ioe);
-    }
-  }
+  private void handleRequest(final String url) {
+    final Bitmap bitmap = downloadBitMap(url);
 
-  private void onPostExecution(final PhotoHolder photoHolder, final Bitmap bitmap) {
-    final Drawable drawable = new BitmapDrawable(mContext.getResources(), bitmap);
+    mLruCache.put(url, bitmap);
+
     mUiHandler.post(
         new Runnable() {
           @Override
           public void run() {
-            photoHolder.bindDrawable(drawable);
+            if (mUrl2Image.get(url) != null) {
+              mUrl2Image.get(url).setImageBitmap(bitmap);
+              mImage2Url.remove(mUrl2Image.get(url));
+              mUrl2Image.remove(url);
+            }
           }
         });
   }
 
-  private static byte[] getUrlBytes(String urlSpec) throws IOException {
-    URL url = new URL(urlSpec);
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-
+  @WorkerThread
+  private Bitmap downloadBitMap(String url) {
+    Request request = new Request.Builder().url(url).build();
     try {
-      ByteArrayOutputStream out = new ByteArrayOutputStream();
-      InputStream in = connection.getInputStream();
-
-      if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
-        throw new IOException(connection.getResponseMessage() + ": with " + urlSpec);
-      }
-
-      int bytesRead;
-      byte[] buffer = new byte[1024];
-      while ((bytesRead = in.read(buffer)) > 0) {
-        out.write(buffer, 0, bytesRead);
-      }
-      out.close();
-      return out.toByteArray();
-    } finally {
-      connection.disconnect();
+      Response response = mOkHttpClient.newCall(request).execute();
+      InputStream inputStream = response.body().byteStream();
+      return BitmapFactory.decodeStream(inputStream);
+    } catch (Exception ex) {
+      ex.printStackTrace();
     }
+    return null;
   }
 }
