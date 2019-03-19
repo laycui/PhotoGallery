@@ -28,7 +28,6 @@ public class PhotoGalleryFragment extends VisibleFragment {
 
   private RecyclerView mPhotoRecyclerView;
   private PhotoAdapter mPhotoAdapter;
-  private List<GalleryItem> mItems = new ArrayList<>();
   private FlickrFetchrV2 mFlickrFetchrV2;
 
   public static PhotoGalleryFragment newInstance() {
@@ -48,7 +47,7 @@ public class PhotoGalleryFragment extends VisibleFragment {
     View v = inflater.inflate(R.layout.fragment_photo_gallery, container, false);
     mPhotoRecyclerView = v.findViewById(R.id.fragment_photo_gallery_recycler_view);
     mPhotoRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(), 3));
-    mPhotoAdapter = new PhotoAdapter(mItems);
+    mPhotoAdapter = new PhotoAdapter();
     mPhotoRecyclerView.setAdapter(mPhotoAdapter);
 
     mFlickrFetchrV2 = new FlickrFetchrV2();
@@ -56,9 +55,7 @@ public class PhotoGalleryFragment extends VisibleFragment {
         new FlickrFetchrV2.OnReceiveGalleryItemsListener() {
           @Override
           public void onGalleryItemsReceived(List<GalleryItem> galleryItems) {
-            mItems.clear();
-            mItems.addAll(galleryItems);
-            mPhotoAdapter.notifyDataSetChanged();
+            mPhotoAdapter.updateView(galleryItems);
           }
         });
 
@@ -139,8 +136,8 @@ public class PhotoGalleryFragment extends VisibleFragment {
   private class PhotoAdapter extends RecyclerView.Adapter<PhotoHolder> {
     private List<GalleryItem> mGalleryItems;
 
-    public PhotoAdapter(List<GalleryItem> galleryItems) {
-      mGalleryItems = galleryItems;
+    PhotoAdapter() {
+      mGalleryItems = new ArrayList<>();
     }
 
     @Override
@@ -158,6 +155,11 @@ public class PhotoGalleryFragment extends VisibleFragment {
     @Override
     public int getItemCount() {
       return mGalleryItems.size();
+    }
+
+    void updateView(List<GalleryItem> newData) {
+      mGalleryItems = newData;
+      notifyDataSetChanged();
     }
   }
 

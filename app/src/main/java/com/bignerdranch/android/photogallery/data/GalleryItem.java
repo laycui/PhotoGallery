@@ -1,15 +1,12 @@
 package com.bignerdranch.android.photogallery.data;
 
-
 import android.net.Uri;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
-import java.util.List;
-
 public class GalleryItem {
-  private static String FLICKR_URL = "http://www.flickr.com/photos/";
+  private static final String FLICKR_URL = "http://www.flickr.com/photos/";
 
   @SerializedName("title")
   @Expose
@@ -46,12 +43,5 @@ public class GalleryItem {
 
   public Uri getPhotoPageUri() {
     return Uri.parse(FLICKR_URL).buildUpon().appendPath(mOwner).appendPath(mId).build();
-  }
-
-  static class GalleryItemList {
-
-    @SerializedName("photo")
-    @Expose
-    List<GalleryItem> mItems;
   }
 }
