@@ -133,7 +133,8 @@ public class PhotoGalleryFragment extends VisibleFragment {
     mFlickrFetchrV2.stop();
   }
 
-  private class PhotoAdapter extends RecyclerView.Adapter<PhotoHolder> {
+
+  private static class PhotoAdapter extends RecyclerView.Adapter<PhotoHolder> {
     private List<GalleryItem> mGalleryItems;
 
     PhotoAdapter() {
@@ -142,9 +143,9 @@ public class PhotoGalleryFragment extends VisibleFragment {
 
     @Override
     public PhotoHolder onCreateViewHolder(ViewGroup viewGroup, int viewType) {
-      LayoutInflater inflater = LayoutInflater.from(getActivity());
+      LayoutInflater inflater = LayoutInflater.from(viewGroup.getContext());
       View view = inflater.inflate(R.layout.gallery_item, viewGroup, false);
-      return new PhotoHolder(view, getContext());
+      return new PhotoHolder(view, viewGroup.getContext());
     }
 
     @Override
@@ -162,6 +163,7 @@ public class PhotoGalleryFragment extends VisibleFragment {
       notifyDataSetChanged();
     }
   }
+
 
   public static class PhotoHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
     private LoadingImageView mItemImageView;

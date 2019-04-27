@@ -25,6 +25,19 @@ public class FlickrFetchrV2 {
 
   private OnReceiveGalleryItemsListener mOnReceiveGalleryItemsListener;
   private Call<GalleryResponseBody> mAsyncCall;
+  private FlickrFetchrService mFlickrFetchrService;
+
+  public FlickrFetchrV2() {
+    Gson gson = new GsonBuilder().setLenient().create();
+
+    Retrofit retrofit =
+        new Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .build();
+
+    mFlickrFetchrService = retrofit.create(FlickrFetchrService.class);
+  }
 
   public void start(@Nullable String query) {
     mAsyncCall = call(query);
@@ -35,6 +48,9 @@ public class FlickrFetchrV2 {
               @NonNull Call<GalleryResponseBody> call,
               @NonNull Response<GalleryResponseBody> response) {
             if (mOnReceiveGalleryItemsListener == null || response.body() == null) {
+              return;
+            }
+            if (response.body().mData == null) {
               return;
             }
             mOnReceiveGalleryItemsListener.onGalleryItemsReceived(response.body().mData.mItems);
@@ -75,18 +91,8 @@ public class FlickrFetchrV2 {
   }
 
   private Call<GalleryResponseBody> call(@Nullable String query) {
-    Gson gson = new GsonBuilder().setLenient().create();
-
-    Retrofit retrofit =
-        new Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create(gson))
-            .build();
-
-    FlickrFetchrService flickrFetchrService = retrofit.create(FlickrFetchrService.class);
-
     String method = query == null ? FETCH_RECENTS_METHOD : SEARCH_METHOD;
-    return flickrFetchrService.getPhotosMetadatas(API_KEY, "json", "1", "url_s", method, null);
+    return mFlickrFetchrService.getPhotosMetadatas(API_KEY, "json", "1", "url_s", method, query);
   }
 
   public interface OnReceiveGalleryItemsListener {
